@@ -4,34 +4,30 @@ import pandas as pd
 import streamlit as st
 import cleantext
 import emoji
+import os
 
-# Ensure NLTK resources are available
+# Ensure NLTK resources are downloaded
 nltk.download('punkt')
-
-# Page Configuration
-st.set_page_config(page_title="Sentiment Web Analyzer", layout="centered")
 
 st.title("Sentiment Web Analyzer")
 
-# Handling the background image safely
-try:
-    background_image = 'image.jpg'
+# Safe image loading
+background_image = 'image.jpg'
+if os.path.exists(background_image):
     st.image(background_image, use_column_width=True)
-except:
-    st.warning("Update 'image.jpg' in your directory to display the header image.")
+else:
+    st.info("Header image 'image.jpg' not found, skipping...")
 
 st.header("Now Scale Your Thoughts")
 
-# ----- Text Analysis Section -----
+# ----- Text Analysis -----
 with st.expander("Analyze Your Text"):
-    text = st.text_input("Text here:", key="sentiment_input")
+    text = st.text_input("Text here:", key="manual_text")
 
     if text:
         blob = TextBlob(text)
-        # Use LaTeX for the Polarity calculation if you want to show the math,
-        # but for simple display, standard text is cleaner.
         polarity = round(blob.sentiment.polarity, 2)
-        st.write(f'**Polarity:** {polarity}')
+        st.write('**Polarity:**', polarity)
 
         if polarity >= 0.1:
             st.write(emoji.emojize("Positive Speech :grinning_face_with_big_eyes:"))
@@ -40,10 +36,9 @@ with st.expander("Analyze Your Text"):
         else:
             st.write(emoji.emojize("Negative Speech :disappointed_face:"))
 
-        st.write(f'**Subjectivity:** {round(blob.sentiment.subjectivity, 2)}')
+        st.write('**Subjectivity:**', round(blob.sentiment.subjectivity, 2))
 
-    st.markdown("---")
-    clean_text_input = st.text_input('Clean Your Text:', key="clean_input")
+    clean_text_input = st.text_input('Clean Your Text:', key="clean_text")
     if clean_text_input:
         cleaned = cleantext.clean(
             clean_text_input,
@@ -59,19 +54,17 @@ with st.expander("Analyze Your Text"):
             no_currency_symbols=True,
             no_punct=True
         )
-        st.success(f"Cleaned Text: {cleaned}")
+        st.success(cleaned)
 
-# ----- Excel/CSV Analysis Section -----
-with st.expander('Analyze Excel or CSV files'):
-    st.info("Note: Your file must contain a column named **'Tweets'**.")
+# ----- Excel/CSV Analysis -----
+with st.expander('Analyze Excel files'):
+    st.write("_**Note**_: Your file must contain the column named 'Tweets' with the text to be analyzed.")
     uploaded_file = st.file_uploader('Upload file', type=['xlsx', 'xls', 'csv'])
 
-
-    def get_score(text):
+    def score(text):
         return TextBlob(str(text)).sentiment.polarity
 
-
-    def get_analysis(polarity):
+    def analyze(polarity):
         if polarity >= 0.1:
             return 'Positive'
         elif polarity <= -0.1:
@@ -79,42 +72,32 @@ with st.expander('Analyze Excel or CSV files'):
         else:
             return 'Neutral'
 
-
     if uploaded_file:
-        try:
-            if uploaded_file.name.endswith('.csv'):
-                df = pd.read_csv(uploaded_file)
-            else:
-                df = pd.read_excel(uploaded_file)
+        if uploaded_file.name.endswith('.csv'):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
 
-            if 'Tweets' not in df.columns:
-                st.error("Column 'Tweets' not found! Please check your file headers.")
-            else:
-                with st.spinner('Analyzing sentiments...'):
-                    df['score'] = df['Tweets'].apply(get_score)
-                    df['analysis'] = df['score'].apply(get_analysis)
+        if 'Tweets' not in df.columns:
+            st.error("Column 'Tweets' not found in the file!")
+        else:
+            df['score'] = df['Tweets'].apply(score)
+            df['analysis'] = df['score'].apply(analyze)
+            st.write(df.head(10))
 
-                st.write("### Analysis Preview")
-                st.dataframe(df.head(10))
+            @st.cache_data
+            def convert_df(df_input):
+                return df_input.to_csv(index=False).encode('utf-8')
 
+            csv = convert_df(df)
 
-                @st.cache_data
-                def convert_df(df_to_save):
-                    return df_to_save.to_csv(index=False).encode('utf-8')
-
-
-                csv_data = convert_df(df)
-
-                st.download_button(
-                    label="Download Full Results as CSV",
-                    data=csv_data,
-                    file_name='sentiment_results.csv',
-                    mime='text/csv',
-                )
-        except Exception as e:
-            st.error(f"An error occurred while processing the file: {e}")
+            st.download_button(
+                label="Download data as CSV",
+                data=csv,
+                file_name='sentiment.csv',
+                mime='text/csv',
+            )
 
 # Footer
-st.markdown("<br><br><br>", unsafe_allow_html=True)
-st.markdown("<hr style='border: 1px solid #bbb;'>", unsafe_allow_html=True)
-st.caption("Copy© 2025 Salman Saleem | Made With ❤️ in Pakistan")
+st.markdown("<br><br><hr style='border: 1px solid black;'>", unsafe_allow_html=True)
+st.write("Copy© 2025 Salman Saleem | Made With ❤️ in Pakistan")
