@@ -15,7 +15,7 @@ st.title("Sentiment Web Analyzer")
 
 # Handling the background image safely
 try:
-    background_image = '"image.jpg"'
+    background_image = "image.jpg.jpg"
     st.image(background_image, use_container_width=True)
 except:
     st.warning("Update 'image.jpg' in your directory to display the header image.")
